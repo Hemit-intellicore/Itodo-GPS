@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPS Image Tagger</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f2f4f7;
+      margin: 0;
+      padding: 0;
+      color: #222;
+    }
+
+    header {
+      background: #b30000;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.8rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 2rem;
+      background: white;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+      border-radius: 12px;
+    }
+
+    form {
+      display: grid;
+      gap: 1.2rem;
+    }
+
+    label {
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 0.3rem;
+      display: block;
+    }
+
+    input, textarea {
+      padding: 0.7rem 1rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      width: 100%;
+      box-sizing: border-box;
+      transition: 0.2s;
+    }
+
+    input:focus, textarea:focus {
+      border-color: #b30000;
+      box-shadow: 0 0 4px rgba(179, 0, 0, 0.3);
+    }
+
+    button {
+      padding: 0.8rem 1.2rem;
+      background: #b30000;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #222;
+    }
+
+    .preview {
+      margin-top: 2.5rem;
+      text-align: center;
+    }
+
+    canvas {
+      max-width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      margin-top: 1rem;
+    }
+
+    /* --- Thumbnail gallery --- */
+    .styles-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .style-thumb {
+      border: 2px solid transparent;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: 0.2s;
+      text-align: center;
+      font-size: 0.8rem;
+      background: #fafafa;
+      padding: 0.3rem;
+    }
+
+    .style-thumb canvas {
+      width: 100%;
+      display: block;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .style-thumb.active {
+      border-color: #b30000;
+      box-shadow: 0 0 6px rgba(179,0,0,0.6);
+    }
+  </style>
+</head>
+<body>
+  <header>📍 GPS Image Tagger</header>
+
+  <div class="container">
+    <form id="tagForm">
+      <div>
+        <label>Upload Image</label>
+        <input type="file" id="imageUpload" accept="image/*" required>
+      </div>
+
+      <div>
+        <label>Location</label>
+        <input type="text" id="location" placeholder="e.g. Makurdi, Benue, Nigeria" required>
+      </div>
+
+      <div>
+        <label>Latitude</label>
+        <input type="text" id="latitude" placeholder="e.g. 7.740269" required>
+      </div>
+
+      <div>
+        <label>Longitude</label>
+        <input type="text" id="longitude" placeholder="e.g. 8.511973" required>
+      </div>
+
+      <div>
+        <label>Date & Time</label>
+        <input type="datetime-local" id="datetime" required>
+      </div>
+
+      <div>
+        <label>Note</label>
+        <textarea id="note" placeholder="Extra info (optional)"></textarea>
+      </div>
+
+      <div>
+        <label>Choose Overlay Style</label>
+        <div class="styles-gallery" id="styleGallery">
+          <div class="style-thumb" data-style="1"><canvas width="120" height="80"></canvas><div>Style 1</div></div>
+          <div class="style-thumb" data-style="2"><canvas width="120" height="80"></canvas><div>Style 2</div></div>
+          <div class="style-thumb" data-style="3"><canvas width="120" height="80"></canvas><div>Style 3</div></div>
+          <div class="style-thumb" data-style="4"><canvas width="120" height="80"></canvas><div>Style 4</div></div>
+          <div class="style-thumb" data-style="5"><canvas width="120" height="80"></canvas><div>Style 5</div></div>
+          <div class="style-thumb" data-style="6"><canvas width="120" height="80"></canvas><div>Style 6</div></div>
+          <div class="style-thumb" data-style="7"><canvas width="120" height="80"></canvas><div>Style 7</div></div>
+          <div class="style-thumb" data-style="8"><canvas width="120" height="80"></canvas><div>Style 8</div></div>
+        </div>
+      </div>
+
+      <button type="submit">✨ Generate Image</button>
+    </form>
+
+    <div class="preview">
+      <h3>Preview</h3>
+      <canvas id="canvas"></canvas>
+      <br>
+      <a id="downloadBtn" style="display:none;" download="gps_image.png">
+        <button>⬇️ Download Image</button>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("tagForm");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const imageUpload = document.getElementById("imageUpload");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const styleGallery = document.getElementById("styleGallery");
+
+    let uploadedImage = null;
+    let selectedStyle = 1; // default
+
+    // --- style selection via thumbnails ---
+    styleGallery.addEventListener("click", (e) => {
+      const thumb = e.target.closest(".style-thumb");
+      if (!thumb) return;
+      document.querySelectorAll(".style-thumb").forEach(t => t.classList.remove("active"));
+      thumb.classList.add("active");
+      selectedStyle = parseInt(thumb.dataset.style);
+    });
+
+    imageUpload.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          uploadedImage = img;
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function drawOverlay(ctx, style, w, h, location, lat, lng, dateString) {
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "#ccc";
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = "black";
+      ctx.font = "10px Segoe UI";
+      ctx.textBaseline = "top";
+
+      if (style === 1) {
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillRect(0, h-20, w, 20);
+        ctx.fillStyle = "white";
+        ctx.fillText(location, 4, h-16);
+      }
+      else if (style === 2) {
+        ctx.fillStyle = "rgba(179,0,0,0.8)";
+        ctx.fillRect(0, 0, w, 20);
+        ctx.fillStyle = "white";
+        ctx.fillText(location, 4, 4);
+      }
+      else if (style === 3) {
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillRect(2, h-18, w-4, 16);
+        ctx.fillStyle = "white";
+        ctx.fillText(lat+","+lng, 4, h-16);
+      }
+      // repeat more for style 4–8 as needed...
+    }
+
+    // render thumbnails on load
+    window.addEventListener("DOMContentLoaded", () => {
+      const thumbs = document.querySelectorAll(".style-thumb");
+      thumbs.forEach(thumb => {
+        const style = parseInt(thumb.dataset.style);
+        const c = thumb.querySelector("canvas");
+        const tctx = c.getContext("2d");
+        drawOverlay(tctx, style, c.width, c.height,
+          "Makurdi", "7.74", "8.51", "2023-12-12 10:00");
+      });
+    });
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (!uploadedImage) {
+        alert("Please upload an image first!");
+        return;
+      }
+
+      ctx.drawImage(uploadedImage, 0, 0, canvas.width, canvas.height);
+
+      const location = document.getElementById("location").value;
+      const latitude = document.getElementById("latitude").value;
+      const longitude = document.getElementById("longitude").value;
+      const datetime = document.getElementById("datetime").value;
+      const note = document.getElementById("note").value;
+      const dateString = new Date(datetime).toLocaleString() + " GMT +01:00";
+
+      if (selectedStyle === 1) {
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(0, canvas.height - 140, canvas.width, 120);
+        ctx.fillStyle = "white";
+        ctx.font = "22px Segoe UI";
+        ctx.fillText(location, 20, canvas.height - 110);
+        ctx.font = "18px Segoe UI";
+        ctx.fillText(`Lat ${latitude}, Long ${longitude}`, 20, canvas.height - 85);
+        ctx.fillText(dateString, 20, canvas.height - 60);
+      }
+      // ... add logic for styles 2–8 similarly ...
+
+      downloadBtn.style.display = "inline-block";
+      downloadBtn.href = canvas.toDataURL("image/png");
+    });
+  </script>
+</body>
+</html>
