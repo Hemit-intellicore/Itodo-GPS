@@ -1,0 +1,164 @@
+<!DOCTYPE html>  
+<html lang="en">  
+<head>  
+  <meta charset="UTF-8" />  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>  
+  <title>GPS Tagger Web App</title>  
+  <style>  
+    body {  
+      font-family: Arial, sans-serif;  
+      background: #111;  
+      color: #fff;  
+      display: flex;  
+      flex-direction: column;  
+      align-items: center;  
+      padding: 20px;  
+    }  
+    h1 {  
+      color: red;  
+      margin-bottom: 20px;  
+    }  
+    .card {  
+      background: #fff;  
+      color: #000;  
+      border-radius: 12px;  
+      padding: 20px;  
+      width: 100%;  
+      max-width: 500px;  
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);  
+    }  
+    input, button {  
+      margin: 10px 0;  
+      padding: 10px;  
+      width: 100%;  
+      border-radius: 6px;  
+      border: 1px solid #ccc;  
+    }  
+    button {  
+      background: red;  
+      color: #fff;  
+      border: none;  
+      font-weight: bold;  
+      cursor: pointer;  
+      transition: 0.3s;  
+    }  
+    button:hover {  
+      background: black;  
+    }  
+    canvas {  
+      margin-top: 20px;  
+      max-width: 100%;  
+      border-radius: 12px;  
+      box-shadow: 0 4px 15px rgba(0,0,0,0.6);  
+    }  
+    .download-btn {  
+      background: black;  
+      color: white;  
+      margin-top: 15px;  
+    }  
+  </style>  
+</head>  
+<body>  
+  <h1>GPS Image Tagger</h1>  
+  <div class="card">  
+    <form id="uploadForm">  
+      <label>Upload Image:</label>  
+      <input type="file" id="imageInput" accept="image/*" required />  
+
+      <label>Coordinates (lat,lng):</label>  
+      <input type="text" id="coords" placeholder="6.5244,3.3792" required />  
+
+      <label>Date:</label>  
+      <input type="date" id="date" required />  
+
+      <label>Time:</label>  
+      <input type="time" id="time" required />  
+
+      <button type="submit">Generate Tagged Image</button>  
+    </form>  
+    <canvas id="canvas"></canvas>  
+    <button id="downloadBtn" class="download-btn" style="display:none;">Download Image</button>  
+  </div>  
+
+  <script>  
+    const form = document.getElementById("uploadForm");  
+    const canvas = document.getElementById("canvas");  
+    const ctx = canvas.getContext("2d");  
+    const downloadBtn = document.getElementById("downloadBtn");  
+
+    form.addEventListener("submit", (e) => {  
+      e.preventDefault();  
+
+      const file = document.getElementById("imageInput").files[0];  
+      const coords = document.getElementById("coords").value;  
+      const date = document.getElementById("date").value;  
+      const time = document.getElementById("time").value;  
+
+      if (!file) return;  
+
+      const reader = new FileReader();  
+      reader.onload = (event) => {  
+        const img = new Image();  
+        img.onload = () => {  
+          canvas.width = img.width;  
+          canvas.height = img.height;  
+          ctx.drawImage(img, 0, 0);  
+
+          // Footer overlay background  
+          const footerHeight = 130;  
+          ctx.fillStyle = "rgba(0,0,0,0.6)";  
+          ctx.fillRect(0, canvas.height - footerHeight, canvas.width, footerHeight);  
+
+          // Boxed overlay text  
+          ctx.fillStyle = "rgba(255,255,255,0.1)";  
+          ctx.fillRect(20, canvas.height - footerHeight + 10, 420, 100);  
+          ctx.strokeStyle = "red";  
+          ctx.lineWidth = 2;  
+          ctx.strokeRect(20, canvas.height - footerHeight + 10, 420, 100);  
+
+          // GPS Map Camera Title  
+          ctx.fillStyle = "red";  
+          ctx.font = "bold 20px Arial";  
+          ctx.fillText("📷 GPS Map Camera", 30, canvas.height - footerHeight + 35);  
+
+          // Coordinates  
+          ctx.fillStyle = "white";  
+          ctx.font = "16px Arial";  
+          ctx.fillText(`Lat, Lng: ${coords}`, 30, canvas.height - footerHeight + 60);  
+
+          // Date & Time  
+          ctx.fillText(`${date}  ${time}`, 30, canvas.height - footerHeight + 85);  
+
+          // Footer note  
+          ctx.font = "italic 14px Arial";  
+          ctx.fillText("Note: Captured by GPS Map Camera", 30, canvas.height - 15);  
+
+          // Map inset (OpenStreetMap with pin)  
+          const [lat, lng] = coords.split(",");  
+          const mapThumb = new Image();  
+          mapThumb.crossOrigin = "anonymous";  
+          // Added red pushpin marker  
+          mapThumb.src = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat.trim()},${lng.trim()}&zoom=15&size=200x200&maptype=mapnik&markers=${lat.trim()},${lng.trim()},red-pushpin`;  
+          mapThumb.onload = () => {  
+            ctx.drawImage(mapThumb, canvas.width - 220, canvas.height - footerHeight - 160, 200, 200);  
+            ctx.strokeStyle = "white";  
+            ctx.lineWidth = 5;  
+            ctx.strokeRect(canvas.width - 220, canvas.height - footerHeight - 160, 200, 200);  
+          };  
+
+          downloadBtn.style.display = "block";  
+        };  
+        img.src = event.target.result;  
+      };  
+      reader.readAsDataURL(file);  
+    });  
+
+    downloadBtn.addEventListener("click", () => {  
+      const link = document.createElement("a");  
+      link.download = "tagged-image.png";  
+      link.href = canvas.toDataURL("image/png");  
+      link.click();  
+    });  
+  </script>  
+</body>  
+</html>
