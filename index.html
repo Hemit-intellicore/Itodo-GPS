@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPS Image Tagger</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f2f4f7;
+      margin: 0;
+      padding: 0;
+      color: #222;
+    }
+
+    header {
+      background: #b30000;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.8rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 2rem;
+      background: white;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+      border-radius: 12px;
+    }
+
+    form {
+      display: grid;
+      gap: 1.2rem;
+    }
+
+    label {
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 0.3rem;
+      display: block;
+    }
+
+    input, textarea {
+      padding: 0.7rem 1rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      width: 100%;
+      box-sizing: border-box;
+      transition: 0.2s;
+    }
+
+    input:focus, textarea:focus {
+      border-color: #b30000;
+      box-shadow: 0 0 4px rgba(179, 0, 0, 0.3);
+    }
+
+    button {
+      padding: 0.8rem 1.2rem;
+      background: #b30000;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #222;
+    }
+
+    .preview {
+      margin-top: 2.5rem;
+      text-align: center;
+    }
+
+    canvas {
+      max-width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <header>📍 GPS Image Tagger</header>
+
+  <div class="container">
+    <form id="tagForm">
+      <div>
+        <label>Upload Image</label>
+        <input type="file" id="imageUpload" accept="image/*" required>
+      </div>
+
+      <div>
+        <label>Location</label>
+        <input type="text" id="location" placeholder="e.g. Makurdi, Benue, Nigeria" required>
+      </div>
+
+      <div>
+        <label>Latitude</label>
+        <input type="text" id="latitude" placeholder="e.g. 7.740269" required>
+      </div>
+
+      <div>
+        <label>Longitude</label>
+        <input type="text" id="longitude" placeholder="e.g. 8.511973" required>
+      </div>
+
+      <div>
+        <label>Date & Time</label>
+        <input type="datetime-local" id="datetime" required>
+      </div>
+
+      <div>
+        <label>Note</label>
+        <textarea id="note" placeholder="Extra info (optional)"></textarea>
+      </div>
+
+      <button type="submit">✨ Generate Image</button>
+    </form>
+
+    <div class="preview">
+      <h3>Preview</h3>
+      <canvas id="canvas"></canvas>
+      <br>
+      <a id="downloadBtn" style="display:none;" download="gps_image.png">
+        <button>⬇️ Download Image</button>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("tagForm");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const imageUpload = document.getElementById("imageUpload");
+    const downloadBtn = document.getElementById("downloadBtn");
+
+    let uploadedImage = null;
+
+    imageUpload.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          uploadedImage = img;
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (!uploadedImage) {
+        alert("Please upload an image first!");
+        return;
+      }
+
+      // Redraw image
+      ctx.drawImage(uploadedImage, 0, 0, canvas.width, canvas.height);
+
+      // Collect data
+      const location = document.getElementById("location").value;
+      const latitude = document.getElementById("latitude").value;
+      const longitude = document.getElementById("longitude").value;
+      const datetime = document.getElementById("datetime").value;
+      const note = document.getElementById("note").value;
+
+      // Choose random style (1–4)
+      const style = Math.floor(Math.random() * 4) + 1;
+
+      // Format date
+      const dateString = new Date(datetime).toLocaleString();
+
+      // === Different overlay styles ===
+      if (style === 1) {
+        // Bottom bar
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(0, canvas.height - 160, canvas.width, 140);
+        ctx.fillStyle = "white";
+        ctx.font = "22px Segoe UI";
+        ctx.fillText(location, 20, canvas.height - 120);
+        ctx.font = "18px Segoe UI";
+        ctx.fillText(`Lat ${latitude}, Long ${longitude}`, 20, canvas.height - 90);
+        ctx.fillText(`${dateString} GMT +01:00`, 20, canvas.height - 60);
+      }
+      else if (style === 2) {
+        // Top banner
+        ctx.fillStyle = "rgba(179,0,0,0.8)";
+        ctx.fillRect(0, 0, canvas.width, 100);
+        ctx.fillStyle = "white";
+        ctx.font = "bold 24px Segoe UI";
+        ctx.fillText(location, 20, 40);
+        ctx.font = "18px Segoe UI";
+        ctx.fillText(`${dateString} GMT +01:00`, 20, 70);
+      }
+      else if (style === 3) {
+        // Small box in bottom-left with map thumbnail
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillRect(20, canvas.height - 200, 320, 160);
+        ctx.fillStyle = "#2e7d32";
+        ctx.fillRect(30, canvas.height - 190, 100, 100);
+        ctx.fillStyle = "red";
+        ctx.beginPath();
+        ctx.arc(80, canvas.height - 140, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "white";
+        ctx.font = "18px Segoe UI";
+        ctx.fillText(location, 140, canvas.height - 170);
+        ctx.fillText(`Lat ${latitude}, Long ${longitude}`, 140, canvas.height - 145);
+        ctx.fillText(`${dateString} GMT +01:00`, 140, canvas.height - 120);
+      }
+      else if (style === 4) {
+        // Floating tag top-right
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.fillRect(canvas.width - 360, 20, 340, 110);
+        ctx.strokeStyle = "#b30000";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(canvas.width - 360, 20, 340, 110);
+        ctx.fillStyle = "#b30000";
+        ctx.font = "bold 20px Segoe UI";
+        ctx.fillText(location, canvas.width - 340, 50);
+        ctx.fillStyle = "#222";
+        ctx.font = "16px Segoe UI";
+        ctx.fillText(`${dateString} GMT +01:00`, canvas.width - 340, 80);
+        ctx.fillText(`Lat ${latitude}, Long ${longitude}`, canvas.width - 340, 105);
+      }
+
+      // Enable download
+      downloadBtn.style.display = "inline-block";
+      downloadBtn.href = canvas.toDataURL("image/png");
+    });
+  </script>
+</body>
+</html>
